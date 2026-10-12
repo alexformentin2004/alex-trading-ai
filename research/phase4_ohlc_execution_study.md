@@ -1,0 +1,7 @@
+# Phase 4 — Intrabar risk and regime study (2026-10-12)
+
+**Source:** private Bybit BTCUSDT perpetual 5m CSV, 2025-01-01 through 2026-09-24 UTC. An independently run local Python engine modeled next-bar-open entries from completed-bar signals, fixed stop/target at 2x/3x ATR, trailing stops, alternative 3x/4x ATR with 12-bar cooldown, and 96-bar maximum holding time. It assumed stop-first if both stop and target were touched within a 5m candle. Five entry regimes times three exit variants: 15 tests.
+
+**Results:** 3/15 positive on Jan-Jul 2026 validation. Best: EMA50/200 + RSI14 threshold 40 + OBV + ATR/close >0.0025; trailing 3x ATR stop, 4x ATR target, 12-bar cooldown: research Mar-Dec 2025 **-0.711%**, validation Jan-Jul 2026 **+0.470%** (6 closed trades), already-inspected Aug-Sep 2026 **-0.569%**. The 2x/3x fixed and 2x/3x trailing variants were +0.261% in validation, but negative in both other segments. **No reliable profitable strategy found.**
+
+**Costs/model:** 5.5bps commission and 1bp slippage each side, 50% current cash nominal exposure, no leverage. Funding, observed spread, exchange minimums, liquidation, actual intra-candle path and queue latency not modeled. Data are not a 99% profit guarantee. August-September was previously seen and is NOT a fresh out-of-sample holdout. The local complete runnable code/tests/JSON results are delivered as phase4_study.zip in the conversation, not yet copied to GitHub.
