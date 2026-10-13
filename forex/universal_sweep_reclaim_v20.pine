@@ -1,0 +1,86 @@
+//@version=6
+strategy("ALEX FOREX | Sweep Reclaim v2 [Research]", overlay=true, initial_capital=10000, currency=currency.EUR, pyramiding=0, commission_type=strategy.commission.percent, commission_value=0.006, slippage=2, margin_long=100, margin_short=100, calc_on_order_fills=true)
+
+g1="Setup"
+lookback=input.int(24,"Range lookback",minval=6,group=g1)
+wickMin=input.float(0.30,"Minimum rejection wick / bar",minval=0.1,maxval=0.9,step=0.05,group=g1)
+htfFilter=input.bool(true,"Prior completed H1 context",group=g1)
+minAtrPct=input.float(0.035,"Minimum ATR %",minval=0.001,group=g1)
+maxAtrPct=input.float(0.35,"Maximum ATR %",minval=0.01,group=g1)
+g2="Risk and exits"
+buffer=input.float(0.30,"Stop beyond wick, ATR",minval=0.05,group=g2)
+rr=input.float(2.0,"Take profit / risk",minval=0.5,group=g2)
+riskPct=input.float(0.5,"Trade risk % equity",minval=0.05,maxval=5,group=g2)
+grossMax=input.float(1.0,"Max notional multiple",minval=0.1,maxval=1.0,group=g2)
+maxDrawdown=input.float(20.0,"Drawdown halt %",minval=1,maxval=90,group=g2)
+maxBars=input.int(18,"Maximum bars held",minval=1,group=g2)
+g3="Timing"
+session=input.session("0700-1700","Entry session (London)",group=g3)
+cooldown=input.int(5,"Minimum bar gap between entries",minval=0,group=g3)
+
+strategy.risk.max_drawdown(maxDrawdown,strategy.percent_of_equity)
+
+atr=ta.atr(14)
+priorHigh=ta.highest(high[1],lookback)
+priorLow=ta.lowest(low[1],lookback)
+bodyLo=math.min(open,close)
+bodyHi=math.max(open,close)
+barRange=math.max(high-low,syminfo.mintick)
+lowerWick=(bodyLo-low)/barRange
+upperWick=(high-bodyHi)/barRange
+h1Close=request.security(syminfo.tickerid,"60",close[1],lookahead=barmerge.lookahead_on)
+h1Ema=request.security(syminfo.tickerid,"60",ta.ema(close,20)[1],lookahead=barmerge.lookahead_on)
+inSession=not na(time(timeframe.period,session,"Europe/London"))
+volPct=100*atr/close
+setup=barstate.isconfirmed and inSession and volPct>=minAtrPct and volPct<=maxAtrPct
+longSetup=setup and low<priorLow and close>priorLow and close>open and lowerWick>=wickMin and (not htfFilter or h1Close<h1Ema)
+shortSetup=setup and high>priorHigh and close<priorHigh and close<open and upperWick>=wickMin and (not htfFilter or h1Close>h1Ema)
+
+var int priorEntryBar=na
+var int openedBar=na
+var float pendingStop=na
+var float activeStop=na
+var float activeTarget=na
+cooldownOK=na(priorEntryBar) or bar_index-priorEntryBar>cooldown
+if setup and cooldownOK and strategy.position_size==0 and strategy.equity>0 and (longSetup or shortSetup)
+    isLong=longSetup
+    proposedStop=isLong ? low-buffer*atr : high+buffer*atr
+    riskDistance=math.abs(close-proposedStop)
+    equityRiskQuote=strategy.convert_to_symbol(strategy.equity*riskPct/100)
+    equityGrossQuote=strategy.convert_to_symbol(strategy.equity*grossMax)
+    qtyRisk=equityRiskQuote/math.max(riskDistance*syminfo.pointvalue,syminfo.mintick)
+    qtyGross=equityGrossQuote/math.max(close*syminfo.pointvalue,syminfo.mintick)
+    step=syminfo.mincontract
+    units=math.floor(math.min(qtyRisk,qtyGross)/step)*step
+    if riskDistance>2*syminfo.mintick and units>=step
+        pendingStop:=proposedStop
+        strategy.entry(isLong?"L":"S",isLong?strategy.long:strategy.short,qty=units)
+        priorEntryBar:=bar_index
+
+newLong=strategy.position_size>0 and strategy.position_size[1]<=0
+newShort=strategy.position_size<0 and strategy.position_size[1]>=0
+if newLong or newShort
+    openedBar:=bar_index
+    fill=strategy.position_avg_price
+    actualDistance=newLong ? fill-pendingStop : pendingStop-fill
+    if actualDistance<=syminfo.mintick
+        strategy.close_all(comment="Invalid gap / stop")
+    else
+        activeStop:=pendingStop
+        activeTarget:=newLong ? fill+rr*actualDistance : fill-rr*actualDistance
+
+if strategy.position_size>0 and not na(activeStop) and not na(activeTarget)
+    strategy.exit("L bracket","L",stop=activeStop,limit=activeTarget)
+if strategy.position_size<0 and not na(activeStop) and not na(activeTarget)
+    strategy.exit("S bracket","S",stop=activeStop,limit=activeTarget)
+if strategy.position_size!=0 and not na(openedBar) and bar_index-openedBar>=maxBars
+    strategy.close_all(comment="Time exit")
+if strategy.position_size==0 and strategy.position_size[1]!=0
+    openedBar:=na
+    activeStop:=na
+    activeTarget:=na
+
+plot(priorHigh,"Prior high",color=color.new(color.red,65))
+plot(priorLow,"Prior low",color=color.new(color.lime,65))
+plotshape(longSetup, title="Long sweep reclaim", style=shape.triangleup, location=location.belowbar, size=size.tiny, color=color.lime)
+plotshape(shortSetup, title="Short sweep reclaim", style=shape.triangledown, location=location.abovebar, size=size.tiny, color=color.red)
