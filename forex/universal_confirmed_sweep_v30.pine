@@ -1,0 +1,130 @@
+//@version=6
+strategy("ALEX FOREX | Confirmed Sweep v3 [RESEARCH]", overlay=true, initial_capital=10000, currency=currency.EUR, pyramiding=0, commission_type=strategy.commission.percent, commission_value=0.006, slippage=2, margin_long=100, margin_short=100, calc_on_order_fills=true)
+g0="00 | Date"
+startDate=input.time(timestamp("01 Jul 2026 00:00 +0000"),"Start UTC",group=g0)
+endDate=input.time(timestamp("13 Oct 2026 23:59 +0000"),"End UTC",group=g0)
+inWindow=time>=startDate and time<=endDate
+
+g1="01 | Setup"
+rangeLen=input.int(24,"Prior range bars",minval=6,group=g1)
+wickFrac=input.float(0.30,"Rejection wick minimum",minval=0.1,maxval=0.9,step=0.05,group=g1)
+minAtr=input.float(0.035,"Minimum ATR %",minval=0.001,group=g1)
+maxAtr=input.float(0.35,"Maximum ATR %",minval=0.01,group=g1)
+h1Context=input.bool(true,"Use previous completed H1 context",group=g1)
+confirmBars=input.int(2,"Bars allowed for confirmation",minval=1,maxval=4,group=g1)
+
+g2="02 | Exit and risk"
+atrBuffer=input.float(0.30,"Stop beyond sweep extreme ATR",minval=0.05,step=0.05,group=g2)
+takeR=input.float(2.0,"Take profit in R",minval=0.5,step=0.1,group=g2)
+riskPct=input.float(0.5,"Risk per position %",minval=0.05,maxval=5,group=g2)
+maxGross=input.float(1.0,"Gross notional / equity max",minval=0.1,maxval=1.0,group=g2)
+maxDD=input.float(20.0,"Drawdown halt %",minval=1,maxval=90,group=g2)
+maxHold=input.int(18,"Time stop bars",minval=1,group=g2)
+minGrossRewardCost=input.float(4.0,"Minimum target / modeled cost",minval=0.5,step=0.5,group=g2)
+modeledCostBps=input.float(2.0,"Indicative one-way+round-trip cost budget, bps",minval=0,step=0.5,group=g2)
+
+g3="03 | Schedule"
+marketHours=input.session("0700-1700","London signal and entry session",group=g3)
+cooldown=input.int(5,"Cooldown after entry, bars",minval=0,group=g3)
+
+strategy.risk.max_drawdown(maxDD,strategy.percent_of_equity)
+atr=ta.atr(14)
+priorHi=ta.highest(high[1],rangeLen)
+priorLo=ta.lowest(low[1],rangeLen)
+barSpan=math.max(high-low,syminfo.mintick)
+bottomWick=(math.min(close,open)-low)/barSpan
+topWick=(high-math.max(close,open))/barSpan
+hClose=request.security(syminfo.tickerid,"60",close[1],lookahead=barmerge.lookahead_on)
+hEma=request.security(syminfo.tickerid,"60",ta.ema(close,20)[1],lookahead=barmerge.lookahead_on)
+inSession=not na(time(timeframe.period,marketHours,"Europe/London"))
+volOK=atr/close*100>=minAtr and atr/close*100<=maxAtr
+canSignal=inWindow and inSession and barstate.isconfirmed and volOK
+longSweep=canSignal and low<priorLo and close>priorLo and close>open and bottomWick>=wickFrac and (not h1Context or hClose<hEma)
+shortSweep=canSignal and high>priorHi and close<priorHi and close<open and topWick>=wickFrac and (not h1Context or hClose>hEma)
+
+var int pendingDirection=0
+var int pendingBar=na
+var float trigger=na
+var float candidateStop=na
+var float candidateAtr=na
+var int lastEntry=na
+var int openedAt=na
+var float activeStop=na
+var float activeLimit=na
+var int stopTradeCount=0
+var int targetTradeCount=0
+var int timedTradeCount=0
+
+if pendingDirection!=0 and (bar_index-pendingBar>confirmBars or not inWindow or not inSession)
+    pendingDirection:=0
+    pendingBar:=na
+
+// The new confirmation is the next bar(s) CLOSE above the signal candle high for long
+// or below its low for short. This explicitly waits for follow-through.
+confirmedLong=pendingDirection==1 and bar_index>pendingBar and bar_index-pendingBar<=confirmBars and close>trigger and close>open
+confirmedShort=pendingDirection==-1 and bar_index>pendingBar and bar_index-pendingBar<=confirmBars and close<trigger and close<open
+
+if barstate.isconfirmed and inWindow and inSession and strategy.position_size==0 and (confirmedLong or confirmedShort) and (na(lastEntry) or bar_index-lastEntry>cooldown)
+    longSide=confirmedLong
+    plannedDist=longSide?close-candidateStop:candidateStop-close
+    // Exclude those with insufficient gross reward vs minimum modelled friction.
+    rewardPct=takeR*plannedDist/close*10000
+    if plannedDist>syminfo.mintick*2 and rewardPct>=minGrossRewardCost*modeledCostBps
+        riskQuote=strategy.convert_to_symbol(strategy.equity*riskPct/100)
+        grossQuote=strategy.convert_to_symbol(strategy.equity*maxGross)
+        qtyRisk=riskQuote/math.max(plannedDist*syminfo.pointvalue,syminfo.mintick)
+        qtyGross=grossQuote/math.max(close*syminfo.pointvalue,syminfo.mintick)
+        step=syminfo.mincontract
+        qty=math.floor(math.min(qtyRisk,qtyGross)/step)*step
+        if qty>=step and strategy.equity>0
+            strategy.entry(longSide?"L":"S",longSide?strategy.long:strategy.short,qty=qty)
+            lastEntry:=bar_index
+    pendingDirection:=0
+    pendingBar:=na
+
+// Store fresh sweeps only when no pending setup is awaiting confirmation
+// (avoids repaint and same-bar signal/confirmation).
+if barstate.isconfirmed and strategy.position_size==0 and pendingDirection==0
+    if longSweep
+        pendingDirection:=1
+        pendingBar:=bar_index
+        trigger:=high
+        candidateAtr:=atr
+        candidateStop:=low-atrBuffer*atr
+    else if shortSweep
+        pendingDirection:=-1
+        pendingBar:=bar_index
+        trigger:=low
+        candidateAtr:=atr
+        candidateStop:=high+atrBuffer*atr
+
+newLong=strategy.position_size>0 and strategy.position_size[1]<=0
+newShort=strategy.position_size<0 and strategy.position_size[1]>=0
+if newLong or newShort
+    openedAt:=bar_index
+    fill=strategy.position_avg_price
+    actualDist=newLong?fill-candidateStop:candidateStop-fill
+    if actualDist<=syminfo.mintick
+        strategy.close_all(comment="Bad fill")
+    else
+        activeStop:=candidateStop
+        activeLimit:=newLong?fill+takeR*actualDist:fill-takeR*actualDist
+if strategy.position_size>0 and not na(activeStop) and not na(activeLimit)
+    strategy.exit("L bracket","L",stop=activeStop,limit=activeLimit)
+if strategy.position_size<0 and not na(activeStop) and not na(activeLimit)
+    strategy.exit("S bracket","S",stop=activeStop,limit=activeLimit)
+if strategy.position_size!=0 and not na(openedAt) and bar_index-openedAt>=maxHold
+    strategy.close_all(comment="Time exit")
+if time>endDate and strategy.position_size!=0
+    strategy.close_all(comment="End of window")
+if strategy.position_size==0 and strategy.position_size[1]!=0
+    openedAt:=na
+    activeStop:=na
+    activeLimit:=na
+
+plot(priorHi,"Range high",color=color.new(color.red,75))
+plot(priorLo,"Range low",color=color.new(color.green,75))
+plotshape(longSweep,title="Long sweep",style=shape.circle,color=color.new(color.lime,0),location=location.belowbar,size=size.tiny)
+plotshape(shortSweep,title="Short sweep",style=shape.circle,color=color.new(color.red,0),location=location.abovebar,size=size.tiny)
+plotshape(confirmedLong and barstate.isconfirmed,title="Confirmed long",style=shape.triangleup,color=color.lime,location=location.belowbar,size=size.small)
+plotshape(confirmedShort and barstate.isconfirmed,title="Confirmed short",style=shape.triangledown,color=color.red,location=location.abovebar,size=size.small)
