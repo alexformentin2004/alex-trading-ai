@@ -75,7 +75,7 @@ def main():
  if len(indices):
   for name,a in vars.items():exploratory[name]=metrics(a[indices])
  report={"status":"RESEARCH_ONLY","pairs":len(d),"bars":len(t),"strategies":len(vars),
- "windows":n,"positive_windows":positive,"forward_windows":folds,
+ "windows":n,"positive_windows":int(positive),"forward_windows":folds,
  "previously_seen_2026_jul_oct":exploratory,
  "limitations":["Yahoo mid H1, approximated spreads/fees, no broker fills",
  "Previous date ranges have been inspected, so not an untouched future evaluation",
@@ -83,7 +83,7 @@ def main():
  "No claim of sustainable profitability until independent positive forward trials"]}
  out=Path("forex_discovery_v2");out.mkdir(exist_ok=True)
  (out/"report.json").write_text(json.dumps(report,indent=2))
- print("SUMMARY",json.dumps({"bars":len(t),"strategies":len(vars),"windows":n,
- "positive_windows":positive,"folds":folds[-8:],
+ print("SUMMARY",json.dumps({"bars":int(len(t)),"strategies":int(len(vars)),"windows":int(n),
+ "positive_windows":int(positive),"folds":folds[-8:],
  "recent":sorted(exploratory.items(),key=lambda x:x[1]["roi_pct"],reverse=True)[:5]},indent=2))
 if __name__=="__main__":main()
