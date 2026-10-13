@@ -1,0 +1,28 @@
+name: Forex exploratory multi-pair backtest
+on:
+  push:
+    branches: [forex-data-pipeline]
+    paths:
+      - 'forex/backtest_yahoo.py'
+      - '.github/workflows/forex-backtest.yml'
+  workflow_dispatch:
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas yfinance==0.2.66
+      - name: Real Yahoo M5 historical research run
+        run: python forex/backtest_yahoo.py --output forex_report
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forex-3pair-research-report
+          path: forex_report/
+          retention-days: 7
