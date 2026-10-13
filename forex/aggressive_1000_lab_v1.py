@@ -45,13 +45,14 @@ def build(closes):
   for lookback in LOOKBACKS:
    momentum=closes.pct_change(lookback)
    score=momentum.abs().shift(0)
-   best=score.idxmax(axis=1)
+   best=score.fillna(-1).idxmax(axis=1)
    side=momentum.lookup if False else None
    gross=np.zeros(len(closes)-1)
    costs=np.zeros(len(closes)-1)
    selection=[]
    for i in range(len(gross)):
     p=best.iat[i]
+    if not np.isfinite(score[p].iat[i]) or score[p].iat[i]<=0:continue
     signal=np.sign(momentum[p].iat[i])
     if direction=="fade":signal=-signal
     if not np.isfinite(signal) or signal==0:continue
