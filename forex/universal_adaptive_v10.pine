@@ -8,7 +8,7 @@ strategy("ALEX FOREX | Universal Adaptive v1.0 [Research]", overlay=true, initia
 groupSignal = "01 | Signal"
 mode = input.string("Breakout + pullback", "Entry mode", options=["Breakout + pullback", "Breakout only", "Pullback only"], group=groupSignal)
 fastLen = input.int(20, "Fast EMA", minval=2, group=groupSignal)
-slowLen = input.int(50, "Slow EMA", minval=fastLen + 1, group=groupSignal)
+slowLen = input.int(50, "Slow EMA", minval=3, group=groupSignal)
 rangeLen = input.int(12, "Breakout lookback bars", minval=3, group=groupSignal)
 adxMin = input.float(18.0, "Minimum ADX", minval=1, step=1, group=groupSignal)
 useHTF = input.bool(true, "Require higher timeframe alignment", group=groupSignal)
