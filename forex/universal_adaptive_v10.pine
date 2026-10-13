@@ -1,0 +1,83 @@
+//@version=6
+strategy("ALEX FOREX | Universal Adaptive v1.0 [Research]", overlay=true, initial_capital=10000, currency=currency.EUR, pyramiding=0, commission_type=strategy.commission.percent, commission_value=0.006, slippage=2, margin_long=100, margin_short=100, process_orders_on_close=false)
+
+// General strategy: one codebase across FX pairs. No guaranteed edge.
+// Backtest on M15 or M30. Change symbol without editing the code.
+// Costs above are placeholders: match broker spread, commission and slippage.
+
+groupSignal = "01 | Signal"
+mode = input.string("Breakout + pullback", "Entry mode", options=["Breakout + pullback", "Breakout only", "Pullback only"], group=groupSignal)
+fastLen = input.int(20, "Fast EMA", minval=2, group=groupSignal)
+slowLen = input.int(50, "Slow EMA", minval=fastLen + 1, group=groupSignal)
+rangeLen = input.int(12, "Breakout lookback bars", minval=3, group=groupSignal)
+adxMin = input.float(18.0, "Minimum ADX", minval=1, step=1, group=groupSignal)
+useHTF = input.bool(true, "Require higher timeframe alignment", group=groupSignal)
+htf = input.timeframe("240", "Higher timeframe", group=groupSignal)
+
+groupRisk = "02 | Risk & exits"
+riskPct = input.float(0.50, "Planned risk per trade (% of equity)", minval=0.05, maxval=5, step=0.05, group=groupRisk)
+stopATR = input.float(1.5, "Stop distance (ATR)", minval=0.5, maxval=6, step=0.1, group=groupRisk)
+rewardRisk = input.float(2.2, "Target / stop ratio", minval=0.5, maxval=8, step=0.1, group=groupRisk)
+maxGross = input.float(1.0, "Maximum gross exposure (x equity)", minval=0.1, maxval=1.0, step=0.1, group=groupRisk)
+maxDD = input.float(20.0, "Max equity drawdown / halt (%)", minval=1.0, maxval=90, step=1, group=groupRisk)
+minAtrPct = input.float(0.035, "Minimum ATR / close (%)", minval=0.001, step=0.005, group=groupRisk)
+
+groupTime = "03 | Session"
+session = input.session("0700-1700", "New-entry session (London time)", group=groupTime)
+allowLong = input.bool(true, "Enable long", group=groupTime)
+allowShort = input.bool(true, "Enable short", group=groupTime)
+barsCooldown = input.int(3, "Minimum bars between entries", minval=0, maxval=100, group=groupTime)
+
+strategy.risk.max_drawdown(maxDD, strategy.percent_of_equity)
+
+emaFast = ta.ema(close, fastLen)
+emaSlow = ta.ema(close, slowLen)
+atr = ta.atr(14)
+[plusDI, minusDI, adx] = ta.dmi(14, 14)
+
+// Confirmed H4 values: previous H4 completed bar, no HTF lookahead.
+htfFast = request.security(syminfo.tickerid, htf, ta.ema(close, 20)[1], lookahead=barmerge.lookahead_on)
+htfSlow = request.security(syminfo.tickerid, htf, ta.ema(close, 50)[1], lookahead=barmerge.lookahead_on)
+htfUp = not useHTF or htfFast > htfSlow
+htfDown = not useHTF or htfFast < htfSlow
+
+localUp = emaFast > emaSlow and close > emaFast and plusDI > minusDI
+localDown = emaFast < emaSlow and close < emaFast and minusDI > plusDI
+breakLong = close > ta.highest(high[1], rangeLen) and close[1] <= ta.highest(high[2], rangeLen)
+breakShort = close < ta.lowest(low[1], rangeLen) and close[1] >= ta.lowest(low[2], rangeLen)
+pullLong = low[1] <= emaFast[1] and close > high[1] and close > open
+pullShort = high[1] >= emaFast[1] and close < low[1] and close < open
+goLong = mode == "Breakout only" ? breakLong : mode == "Pullback only" ? pullLong : (breakLong or pullLong)
+goShort = mode == "Breakout only" ? breakShort : mode == "Pullback only" ? pullShort : (breakShort or pullShort)
+
+inSession = not na(time(timeframe.period, session, "Europe/London"))
+quality = adx >= adxMin and (atr / close * 100 >= minAtrPct)
+var int lastEntryBar = na
+cooldownOK = na(lastEntryBar) or bar_index - lastEntryBar > barsCooldown
+stopDistance = atr * stopATR
+
+// Currency conversion for risk budget; 1x gross notional cap.
+// Actual minimum lot and margin rules must be checked with the broker.
+riskBudgetSymbol = strategy.convert_to_symbol(strategy.equity * riskPct / 100)
+grossBudgetSymbol = strategy.convert_to_symbol(strategy.equity * maxGross)
+qtyRisk = riskBudgetSymbol / math.max(stopDistance * syminfo.pointvalue, syminfo.mintick)
+qtyGross = grossBudgetSymbol / math.max(close * syminfo.pointvalue, syminfo.mintick)
+rawQty = math.min(qtyRisk, qtyGross)
+qtyStep = syminfo.mincontract
+tradeQty = math.floor(rawQty / qtyStep) * qtyStep
+
+common = barstate.isconfirmed and inSession and quality and cooldownOK and strategy.position_size == 0 and tradeQty >= qtyStep and strategy.equity > 0
+
+if common and allowLong and localUp and htfUp and goLong
+    strategy.entry("L", strategy.long, qty=tradeQty)
+    strategy.exit("L bracket", from_entry="L", stop=close - stopDistance, limit=close + stopDistance * rewardRisk)
+    lastEntryBar := bar_index
+else if common and allowShort and localDown and htfDown and goShort
+    strategy.entry("S", strategy.short, qty=tradeQty)
+    strategy.exit("S bracket", from_entry="S", stop=close + stopDistance, limit=close - stopDistance * rewardRisk)
+    lastEntryBar := bar_index
+
+plot(emaFast, "EMA fast", color=color.aqua)
+plot(emaSlow, "EMA slow", color=color.orange)
+plotshape(common and allowLong and localUp and htfUp and goLong, title="Long setup", style=shape.triangleup, location=location.belowbar, color=color.lime, size=size.tiny)
+plotshape(common and allowShort and localDown and htfDown and goShort, title="Short setup", style=shape.triangledown, location=location.abovebar, color=color.red, size=size.tiny)
