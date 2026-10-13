@@ -1,0 +1,23 @@
+name: Forex v0.8 four-hypothesis comparison
+on:
+  push:
+    branches: [forex-data-pipeline]
+    paths: ['forex/research_v08.py','.github/workflows/forex-v08.yml']
+  workflow_dispatch:
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas yfinance==0.2.66
+      - name: Compare four Forex research hypotheses
+        run: python forex/research_v08.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: forex-v08-strategy-comparison
+          path: forex_v08_report/
+          retention-days: 7
