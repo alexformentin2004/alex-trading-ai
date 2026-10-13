@@ -88,8 +88,8 @@ def simulate(gross,costs,leverage,start,end,stress=1.0):
    ruin=True
   values.append(equity)
  return {"roi_pct":round((equity/INITIAL_CAPITAL-1)*100,3),
-         "max_dd_pct":round(dd*100,3),"ruined":ruin,
-         "hit_1000pct":equity>=INITIAL_CAPITAL*TARGET,
+         "max_dd_pct":round(dd*100,3),"ruined":bool(ruin),
+         "hit_1000pct":bool(equity>=INITIAL_CAPITAL*TARGET),
          "end_eur":round(equity,2)}
 
 def main():
