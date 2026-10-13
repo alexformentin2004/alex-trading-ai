@@ -1,0 +1,23 @@
+name: Forex frozen walk forward protocol
+on:
+  push:
+    branches: [forex-data-pipeline]
+    paths: ['forex/frozen_walkforward_v1.py','.github/workflows/forex-walkforward-v1.yml']
+  workflow_dispatch:
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy yfinance==0.2.66
+      - run: python forex/frozen_walkforward_v1.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forex-walkforward-v1-report
+          path: forex_walkforward_v1/
+          retention-days: 7
