@@ -127,10 +127,10 @@ def main():
     # 2 fixed styles, four leverages, sequential historical folds.
     configs=[(style,lev) for style in ("trend","fade") for lev in LEV]
     folds=[]
-    for start in range(TRAIN_HOURS,len(times)-TEST_HOURS,TEST_HOURS):
+    for start in range(max(TRAIN_HOURS,len(times)-6*TEST_HOURS),len(times)-TEST_HOURS,TEST_HOURS):
         results=[]
         for style,lev in configs:
-            dev=simulation(data,times,16,start-1,lev,style=style)
+            dev=simulation(data,times,start-TRAIN_HOURS,start-1,lev,style=style)
             score=dev["roi_pct"]-abs(dev["max_dd_pct"])*2-1000*dev["ruined"]
             results.append((score,style,lev))
         results.sort(reverse=True)
