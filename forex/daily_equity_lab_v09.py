@@ -60,7 +60,7 @@ def daily_returns(days,quotes):
      strengths[currency]=sum(components)/len(components)
     scores=pd.DataFrame({pair:strengths[pair[:3]]-strengths[pair[3:]] for pair in UNIVERSE},index=days)
    # Fixed deterministic opportunity: strongest ABS signal, one gross 1x FX position.
-   strongest=scores.abs().idxmax(axis=1)
+   strongest=scores.abs().fillna(0).idxmax(axis=1)
    daily=[]
    for i,day in enumerate(days[:-1]):
     p=strongest.iat[i]
