@@ -1,0 +1,23 @@
+name: Forex two year H1 regime research
+on:
+  push:
+    branches: [forex-data-pipeline]
+    paths: ['forex/long_h1_regimes_v06.py','.github/workflows/forex-long-h1-v06.yml']
+  workflow_dispatch:
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy yfinance==0.2.66
+      - run: python forex/long_h1_regimes_v06.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forex-v06-two-year-regime-research
+          path: forex_v06_long_h1/
+          retention-days: 7
