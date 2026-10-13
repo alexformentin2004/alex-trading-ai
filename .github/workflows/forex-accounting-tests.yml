@@ -1,0 +1,16 @@
+name: Forex 2.0 accounting regression tests
+on:
+  push:
+    branches: [forex-data-pipeline]
+    paths: ['forex/test_portfolio_accounting_v03.py','.github/workflows/forex-accounting-tests.yml']
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python forex/test_portfolio_accounting_v03.py -v
