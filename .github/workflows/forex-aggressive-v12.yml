@@ -1,0 +1,23 @@
+name: Forex 2.0 Aggressive Engine research
+on:
+  push:
+    branches: [forex-data-pipeline]
+    paths: ['forex/aggressive_engine_v12.py','.github/workflows/forex-aggressive-v12.yml']
+  workflow_dispatch:
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas yfinance==0.2.66
+      - run: python forex/aggressive_engine_v12.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forex-aggressive-v12-backtest
+          path: forex_aggressive_v12/
+          retention-days: 7
