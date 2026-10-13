@@ -1,0 +1,35 @@
+name: Forex Yahoo recent 5m probe
+on:
+  push:
+    branches: [forex-data-pipeline]
+    paths: ['.github/workflows/forex-yahoo.yml']
+  workflow_dispatch:
+jobs:
+  recent-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install yfinance==0.2.66 pandas
+      - name: Download and validate actual FX intraday 5m bars
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import yfinance as yf
+          import pandas as pd
+          out=Path('forex_recent');out.mkdir(exist_ok=True)
+          for p,t in [('EURUSD','EURUSD=X'),('GBPUSD','GBPUSD=X'),('USDJPY','JPY=X')]:
+              frame=yf.download(t,period='5d',interval='5m',auto_adjust=False,progress=False,threads=False)
+              print(p,len(frame))
+              if frame.empty or len(frame)<100: raise RuntimeError('No verifiable real rows for '+p)
+              frame.to_csv(out/(p+'_5m.csv'))
+              print('start',frame.index.min(),'end',frame.index.max())
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: forex-yahoo-five-days-5m
+          path: forex_recent/
+          retention-days: 7
