@@ -1,0 +1,23 @@
+name: Forex 2.0 twelve pair momentum hypothesis
+on:
+  push:
+    branches: [forex-data-pipeline]
+    paths: ['forex/cross_pair_hypothesis_v05.py','.github/workflows/forex-cross-pair-v05.yml']
+  workflow_dispatch:
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy yfinance==0.2.66
+      - run: python forex/cross_pair_hypothesis_v05.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forex-cross-pair-v05-report
+          path: forex_cross_pair_v05/
+          retention-days: 7
