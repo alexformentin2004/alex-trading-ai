@@ -1,0 +1,23 @@
+name: Forex 2.0 unlevered daily target audit
+on:
+  push:
+    branches: [forex-data-pipeline]
+    paths: ['forex/engine20_target_v02.py','.github/workflows/forex-engine20-target-v02.yml']
+  workflow_dispatch:
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy scikit-learn yfinance==0.2.66
+      - run: python forex/engine20_target_v02.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forex-engine20-unlevered-target-audit
+          path: forex_engine_20_target_audit/
+          retention-days: 7
