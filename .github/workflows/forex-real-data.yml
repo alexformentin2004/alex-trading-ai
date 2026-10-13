@@ -1,0 +1,44 @@
+name: Forex real data smoke test
+on:
+  push:
+    branches: [forex-data-pipeline]
+  workflow_dispatch:
+jobs:
+  dukascopy-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download actual Dukascopy M1 candles
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p forex_data
+          for pair in eurusd gbpusd usdjpy; do
+            echo "::group::$pair"
+            npx --yes --package=dukascopy-node@1.50.0 dukascopy-node -i "$pair" -from 2025-01-06 -to 2025-01-09 -t m1 -f csv -dir forex_data
+            echo "::endgroup::"
+          done
+      - name: Validate data files
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          files=list(Path('forex_data').rglob('*.csv'))
+          print('CSV files:', [str(p) for p in files])
+          assert len(files)>=3, 'Expected 3 Forex CSV files'
+          for file in files:
+              rows=file.read_text(errors='replace').splitlines()
+              print(file, 'lines=', len(rows), 'header=', rows[0][:200] if rows else '')
+              assert len(rows)>100, f'Insufficient real price records: {file}'
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: forex-m1-real-2025-01-06-to-09
+          path: forex_data/
+          retention-days: 7
