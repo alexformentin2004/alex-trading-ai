@@ -94,13 +94,13 @@ def stats(x):
     return {"trades":len(a),"mean_return_bps":round(a.mean()*10000,3),
             "profit_factor":round(float(w/loss),3) if loss>0 else None,
             "win_rate_pct":round(float((a>0).mean()*100),2)}
-def unlevered_portfolio(candidates, selected_indices, split):
+def unlevered_portfolio(candidates, selected_rows, split):
     """Daily capital-equity approximation, gross open exposure capped at 1x.
     Each accepted idea allocates equal 10% capital, closes after six bars.
     Independent signals may overlap; cash-equivalent uninvested balance earns 0.
     Uses indicative mid OHLC; cannot replace bid/ask broker-grade backtesting.
     """
-    rows=candidates.loc[selected_indices].sort_index().copy()
+    rows=selected_rows.sort_index().copy()
     if rows.empty:
         return {"trades":0,"calendar_days":0,"daily_mean_pct":None,"target_met":False}
     active=[];pnl=[];opened=0;rejected=0
@@ -160,9 +160,9 @@ def main():
       "tests":{"all_signals":stats(test.net),"higher_timeframe_filter":stats(filtered.net),
                "ml_candidate_gate":stats(selected.net)},
       "unlevered_target_audit":{
-          "all_signals":unlevered_portfolio(test,test.index,split),
-          "higher_timeframe_filter":unlevered_portfolio(test,filtered.index,split),
-          "ml_candidate_gate":unlevered_portfolio(test,selected.index,split)},
+          "all_signals":unlevered_portfolio(test,test,split),
+          "higher_timeframe_filter":unlevered_portfolio(test,filtered,split),
+          "ml_candidate_gate":unlevered_portfolio(test,selected,split)},
       "limitations":["Research uses short overlapping Yahoo M5 history, NOT 2 years of bid/ask",
        "No real execution or minimum lot/margin compatibility at 10 EUR",
        "Overlapping 6-bar outcomes are dependent, test uncertainty not quantified",
