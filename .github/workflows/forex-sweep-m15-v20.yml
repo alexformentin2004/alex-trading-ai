@@ -1,0 +1,23 @@
+name: Forex Sweep Reclaim v2 actual M15 backtest
+on:
+  push:
+    branches: [forex-data-pipeline]
+    paths: ['forex/sweep_reclaim_m15_backtest_v20.py','.github/workflows/forex-sweep-m15-v20.yml']
+  workflow_dispatch:
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy yfinance==0.2.66
+      - run: python forex/sweep_reclaim_m15_backtest_v20.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sweep-reclaim-m15-trade-ledger
+          path: forex_sweep_v20_m15/
+          retention-days: 7
