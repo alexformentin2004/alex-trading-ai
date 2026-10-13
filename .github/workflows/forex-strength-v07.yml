@@ -1,0 +1,23 @@
+name: Forex 2.0 currency-strength research
+on:
+  push:
+    branches: [forex-data-pipeline]
+    paths: ['forex/currency_strength_v07.py','.github/workflows/forex-strength-v07.yml']
+  workflow_dispatch:
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy yfinance==0.2.66
+      - run: python forex/currency_strength_v07.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forex-currency-strength-research
+          path: forex_v07_strength/
+          retention-days: 7
