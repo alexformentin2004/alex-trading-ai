@@ -21,7 +21,7 @@ jobs:
           mkdir -p forex_data
           for pair in eurusd gbpusd usdjpy; do
             echo "::group::$pair"
-            npx --yes --package=dukascopy-node@1.50.0 dukascopy-node -i "$pair" -from 2025-01-06 -to 2025-01-09 -t m1 -f csv -dir forex_data
+            npx --yes --package=dukascopy-node@1.50.0 dukascopy-node -i "$pair" -from 2025-01-06 -to 2025-01-09 -t m1 -f csv -dir forex_data --retries 4 --retry-on-empty --retry-pause 1500 --batch-size 2 --debug
             echo "::endgroup::"
           done
       - name: Validate data files
