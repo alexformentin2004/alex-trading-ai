@@ -1,0 +1,23 @@
+name: Forex v0.9 MTF scalping 9 pairs
+on:
+  push:
+    branches: [forex-data-pipeline]
+    paths: ['forex/mtf_scalping_v09.py','.github/workflows/forex-v09.yml']
+  workflow_dispatch:
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas yfinance==0.2.66
+      - run: python forex/mtf_scalping_v09.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forex-v09-mtf-scalping
+          path: forex_v09_report/
+          retention-days: 7
