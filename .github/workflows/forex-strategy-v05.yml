@@ -1,0 +1,22 @@
+name: Forex v0.5 strategy robustness
+on:
+  push:
+    branches: [forex-data-pipeline]
+    paths: ['forex/strategy_v05.py','.github/workflows/forex-strategy-v05.yml']
+  workflow_dispatch:
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas yfinance==0.2.66
+      - run: python forex/strategy_v05.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: forex-strategy-v05-comparison
+          path: forex_v05_report/
+          retention-days: 7
