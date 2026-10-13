@@ -1,0 +1,16 @@
+name: Forex real bid ask import smoke tests
+on:
+  push:
+    branches: [forex-data-pipeline]
+    paths: ['forex/bidask_tick_audit_v1.py','forex/test_bidask_tick_audit_v1.py','.github/workflows/forex-real-bidask-v1.yml']
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy
+      - run: python -m unittest forex.test_bidask_tick_audit_v1 -v
