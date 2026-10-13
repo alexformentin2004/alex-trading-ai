@@ -1,0 +1,23 @@
+name: Forex 2.0 unlevered daily equity search
+on:
+  push:
+    branches: [forex-data-pipeline]
+    paths: ['forex/daily_equity_lab_v09.py','.github/workflows/forex-daily-equity-v09.yml']
+  workflow_dispatch:
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy yfinance==0.2.66
+      - run: python forex/daily_equity_lab_v09.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forex-v09-daily-equity-results
+          path: forex_v09_daily_equity/
+          retention-days: 7
