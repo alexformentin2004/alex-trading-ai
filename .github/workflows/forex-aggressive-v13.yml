@@ -1,0 +1,23 @@
+name: Forex aggressive v1.3 directional challenger
+on:
+  push:
+    branches: [forex-data-pipeline]
+    paths: ['forex/aggressive_challengers_v13.py','.github/workflows/forex-aggressive-v13.yml']
+  workflow_dispatch:
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas yfinance==0.2.66
+      - run: python forex/aggressive_challengers_v13.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forex-aggressive-v13-report
+          path: forex_aggressive_v13/
+          retention-days: 7
