@@ -1,0 +1,20 @@
+name: Forex legacy feed diagnosis
+on:
+  push:
+    branches: [forex-data-pipeline]
+    paths: ['.github/workflows/forex-legacy-feed-diagnosis.yml']
+  workflow_dispatch:
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe legacy Dukascopy archive bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://datafeed.dukascopy.com/datafeed/EURUSD/2021/02/02/BID_candles_min_1.bi5"
+          status=$(curl -L --max-time 25 -sS -o /tmp/eurusd.bi5 -w "%{http_code}" "$url" || true)
+          echo "Legacy bid HTTP: $status"
+          wc -c /tmp/eurusd.bi5 || true
+          test "$status" = "200" && test $(stat -c%s /tmp/eurusd.bi5) -gt 500
