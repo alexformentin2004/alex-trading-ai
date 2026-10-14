@@ -18,9 +18,14 @@ jobs:
           python-version: '3.11'
       - run: pip install pandas numpy
       - name: Download EURUSD BID M1 September 2026
-        run: npx --yes dukascopy-node -i eurusd -from 2024-09-01 -to 2024-10-01 -t m1 -p bid -f csv -dir m1_bid -bs 5 -bp 1500
+        run: npx --yes dukascopy-node -i eurusd -from 2021-03-01 -to 2021-03-05 -t m1 -p bid -f csv -dir m1_bid -bs 2 -bp 1500 -r 3 -re -fr -d
       - name: Download EURUSD ASK M1 September 2026
-        run: npx --yes dukascopy-node -i eurusd -from 2024-09-01 -to 2024-10-01 -t m1 -p ask -f csv -dir m1_ask -bs 5 -bp 1500
+        run: npx --yes dukascopy-node -i eurusd -from 2021-03-01 -to 2021-03-05 -t m1 -p ask -f csv -dir m1_ask -bs 2 -bp 1500 -r 3 -re -fr -d
+      - name: Verify downloaded data are not empty
+        run: |
+          find m1_bid m1_ask -type f -printf '%p %s bytes\\n'
+          test $(find m1_bid -type f -size +1000c | wc -l) -ge 1
+          test $(find m1_ask -type f -size +1000c | wc -l) -ge 1
       - name: Compare all bots and broker lot viability
         run: python forex/dukascopy_three_bots_v1.py --bid-dir m1_bid --ask-dir m1_ask --output results/report.json
       - uses: actions/upload-artifact@v4
