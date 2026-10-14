@@ -1,0 +1,23 @@
+name: Forex M1 scalper forensic audit
+on:
+  push:
+    branches: [forex-data-pipeline]
+    paths: ['forex/m1_scalper_forensics_v1.py','.github/workflows/forex-m1-forensics.yml']
+  workflow_dispatch:
+jobs:
+  forensic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install numpy pandas yfinance==0.2.66
+      - run: python forex/m1_scalper_forensics_v1.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: forex-m1-scalper-audit
+          path: forex_m1_scalper_audit/
+          retention-days: 14
