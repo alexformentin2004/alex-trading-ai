@@ -1,0 +1,31 @@
+name: Forex Dukascopy bid-ask extended three bot comparison
+on:
+  push:
+    branches: [forex-data-pipeline]
+    paths: ['forex/dukascopy_three_bots_v1.py','.github/workflows/forex-dukascopy-three-bots.yml']
+  workflow_dispatch:
+jobs:
+  comparative:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy
+      - name: Download EURUSD BID M1 September 2026
+        run: npx --yes dukascopy-node -i eurusd -from 2026-09-01 -to 2026-10-01 -t m1 -p bid -f csv -dir m1_bid -bs 5 -bp 1500
+      - name: Download EURUSD ASK M1 September 2026
+        run: npx --yes dukascopy-node -i eurusd -from 2026-09-01 -to 2026-10-01 -t m1 -p ask -f csv -dir m1_ask -bs 5 -bp 1500
+      - name: Compare all bots and broker lot viability
+        run: python forex/dukascopy_three_bots_v1.py --bid-dir m1_bid --ask-dir m1_ask --output results/report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dukascopy-three-bots-comparison
+          path: results/report.json
+          retention-days: 14
