@@ -1,0 +1,16 @@
+name: Forex long M1 import check
+on:
+  push:
+    branches: [forex-data-pipeline]
+    paths: ['forex/m1_extended_compare_v1.py','.github/workflows/forex-m1-extended-check.yml']
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas numpy yfinance==0.2.66
+      - run: python -m py_compile forex/m1_extended_compare_v1.py
