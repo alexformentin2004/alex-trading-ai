@@ -70,7 +70,7 @@ def evaluate(d,kind):
     units=sign*max(0.,notional/px)
     if units:positions.append((units,px+half if units>0 else px-half));opened+=1
   else:
-   if sig:
+   if sig and (kind!='hybrid' or not positions):
     free=max(0.,mark(px)*LEV-sum(abs(u)*px for u,_ in positions))
     notional=min(max(0.,mark(px)*LEV*.5),free)
     units=float(sig)*notional/px
@@ -104,7 +104,7 @@ def main():
                         "Margin closeout 50% used margin approximation, no swaps or financing",
                         "Backtest signal logic pre-specified, but already-researched period not untouched",
                         "Margin checked at next M1 open, not every tick, so gap liquidation understated",
-                        "7 calendar days data, NOT a 3-4 month ROI test",
+                        "Short provider M1 window, NOT a 3-4 month ROI test",
                         "No live orders or verified high-ROI strategy"]}
  out=Path("forex_m1_three_bots");out.mkdir(exist_ok=True)
  (out/"report.json").write_text(json.dumps(report,indent=2))
