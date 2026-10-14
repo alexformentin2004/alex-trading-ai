@@ -15,7 +15,9 @@ def read_files(path):
  if not files:raise RuntimeError(f"No CSV under {path}")
  frames=[]
  for f in files:
-  d=pd.read_csv(f)
+  if Path(f).stat().st_size==0:continue
+  try:d=pd.read_csv(f)
+  except pd.errors.EmptyDataError:continue
   if not set(["timestamp","open","high","low","close"]).issubset(d.columns):continue
   d["time"]=pd.to_datetime(d.timestamp,unit="ms",utc=True)
   frames.append(d.set_index("time")[["open","high","low","close"]])
